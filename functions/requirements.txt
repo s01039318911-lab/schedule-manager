@@ -1,3 +1,4 @@
 functions-framework==3.*
 firebase-admin==6.2.0
 firebase-functions==0.1.0
+flask==3.0.0
