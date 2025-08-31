@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스케줄</title>
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+        
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyDANK4oH8Jqg_gqnGBONAmiy9KHK1wkoBc",
+            authDomain: "ssol-8a899.firebaseapp.com",
+            projectId: "ssol-8a899",
+            storageBucket: "ssol-8a899.firebasestorage.app",
+            messagingSenderId: "108497917949",
+            appId: "1:108497917949:web:fb24f14e2e81b0956a2b94",
+            measurementId: "G-3C8D7QJL90"
+        };
+        
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        window.firebase = { db, auth };
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f7fa;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .calendar-wrapper {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #calendar {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        /* 로그인 페이지 스타일 */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 3rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .message {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <!-- 로그인 페이지 -->
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <h1 class="login-title">📅 스케줄</h1>
+            
+            <div id="authMessage" class="message"></div>
+            
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="username">사용자명</label>
+                    <input type="text" id="username" placeholder="사용자명 입력" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" placeholder="비밀번호 입력" required>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">자동 로그인</label>
+                </div>
+                
+                <div class="auth-buttons">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">로그인</button>
+                    <button type="button" id="registerBtn" class="btn btn-secondary" style="flex: 1;">회원가입</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 메인 페이지 -->
+    <div id="mainPage" style="display: none;">
+        <div class="header">
+            <h1>📅 스케줄</h1>
+            <div class="user-info">
+                <span id="currentUser">게스트</span>
+                <button id="adminBtn" class="logout-btn" onclick="openAdminModal()" style="display: none; margin-right: 1rem;">👑 회원관리</button>
+                <button class="logout-btn" onclick="logout()">로그아웃</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="controls">
+                <div class="view-toggle">
+                    <button id="myEventsBtn" class="btn btn-secondary active" onclick="toggleView('my')">내 일정</button>
+                    <button id="allEventsBtn" class="btn btn-secondary" onclick="toggleView('all')">전체 일정</button>
+                </div>
+                <button class="btn btn-primary" onclick="openAddEventModal()">➕ 일정 추가</button>
+            </div>
+
+            <div class="calendar-wrapper">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase 관련 변수
+        let currentUser = null;
+        let isAdmin = false;
+
+        // 인증 상태 확인
+        firebase.auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                showMainPage();
+                loadUserData();
+            } else {
+                showLoginPage();
+            }
+        });
+
+        function showLoginPage() {
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('mainPage').style.display = 'none';
+        }
+
+        function showMainPage() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainPage').style.display = 'block';
+            initializeCalendar();
+        }
+
+        // 로그인/회원가입 처리
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim().replace(/\s/g, '');
+            const password = document.getElementById('password').value.trim().replace(/\s/g, '');
+            
+            if (!username || !password) {
+                showMessage('사용자명과 비밀번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                // Firebase Auth는 이메일을 요구하므로 사용자명@domain.com 형식으로 변환
+                const email = `${username}@schedule.com`;
+                
+                const userCredential = await firebase.auth.signInWithEmailAndPassword(email, password);
+                
+                // 자동 로그인 설정 저장
+                if (document.getElementById('rememberMe').checked) {
+                    localStorage.setItem('autoLogin', JSON.stringify({username, password}));
+                }
+                
+                showMessage('로그인 성공!', 'success');
+                
+            } catch (error) {
+                showMessage('잘못된 사용자명 또는 비밀번호입니다.', 'error');
+            }
+        });
+
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim().replace(/\s/g, '');
+            const password = document.getElementById('password').value.trim().replace(/\s/g, '');
+            
+            if (!username || !password) {
+                showMessage('사용자명과 비밀번호를 입력해주세요.', 'error');
+                return;
+            }
+
+            try {
+                const email = `${username}@schedule.com`;
+                const userCredential = await firebase.auth.createUserWithEmailAndPassword(email, password);
+                
+                // Firestore에 사용자 정보 저장
+                await firebase.db.collection('users').doc(userCredential.user.uid).set({
+                    username: username,
+                    isAdmin: username === '이뿌니',
+                    createdAt: new Date()
+                });
+                
+                showMessage('회원가입 성공!', 'success');
+                
+            } catch (error) {
+                if (error.code === 'auth/email-already-in-use') {
+                    showMessage('이미 존재하는 사용자명입니다.', 'error');
+                } else {
+                    showMessage('회원가입에 실패했습니다.', 'error');
+                }
+            }
+        });
+
+        async function logout() {
+            try {
+                await firebase.auth.signOut();
+                localStorage.removeItem('autoLogin');
+                showMessage('로그아웃되었습니다.', 'success');
+            } catch (error) {
+                showMessage('로그아웃 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageEl = document.getElementById('authMessage');
+            messageEl.textContent = message;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 3000);
+        }
+
+        // 사용자 데이터 로드
+        async function loadUserData() {
+            if (!currentUser) return;
+            
+            try {
+                const userDoc = await firebase.db.collection('users').doc(currentUser.uid).get();
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    document.getElementById('currentUser').textContent = userData.username + '님';
+                    isAdmin = userData.isAdmin;
+                    
+                    if (isAdmin) {
+                        document.getElementById('currentUser').innerHTML += ' <span class="admin-badge">👑 관리자</span>';
+                        document.getElementById('adminBtn').style.display = 'inline-block';
+                    }
+                }
+            } catch (error) {
+                console.error('사용자 데이터 로드 오류:', error);
+            }
+        }
+
+        // 캘린더 초기화
+        function initializeCalendar() {
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                events: loadEvents,
+                eventClick: function(info) {
+                    // 일정 상세보기 모달 열기
+                    openEventDetail(info.event);
+                }
+            });
+            calendar.render();
+            window.calendar = calendar;
+        }
+
+        // 일정 로드
+        async function loadEvents() {
+            if (!currentUser) return [];
+            
+            try {
+                const eventsRef = firebase.db.collection('events');
+                const snapshot = await eventsRef.get();
+                const events = [];
+                
+                snapshot.forEach((doc) => {
+                    const event = doc.data();
+                    events.push({
+                        id: doc.id,
+                        title: event.title,
+                        start: event.startTime.toDate(),
+                        end: event.endTime.toDate(),
+                        description: event.description || '',
+                        creator: event.creator
+                    });
+                });
+                
+                return events;
+            } catch (error) {
+                console.error('일정 로드 오류:', error);
+                return [];
+            }
+        }
+
+        // 기본 함수들 (모달 등)
+        function openAddEventModal() {
+            alert('일정 추가 기능을 구현 중입니다.');
+        }
+
+        function openEventDetail(event) {
+            alert(`일정: ${event.title}\n시간: ${event.start.toLocaleString()}`);
+        }
+
+        function openAdminModal() {
+            alert('관리자 기능을 구현 중입니다.');
+        }
+
+        function toggleView(view) {
+            // 뷰 토글 기능 구현
+            const myBtn = document.getElementById('myEventsBtn');
+            const allBtn = document.getElementById('allEventsBtn');
+            
+            if (view === 'my') {
+                myBtn.classList.add('active');
+                allBtn.classList.remove('active');
+            } else {
+                allBtn.classList.add('active');
+                myBtn.classList.remove('active');
+            }
+        }
+
+        // 자동 로그인 체크
+        window.addEventListener('load', () => {
+            const autoLogin = localStorage.getItem('autoLogin');
+            if (autoLogin) {
+                const { username, password } = JSON.parse(autoLogin);
+                document.getElementById('username').value = username;
+                document.getElementById('password').value = password;
+                document.getElementById('rememberMe').checked = true;
+            }
+        });
+    </script>
+</body>
+</html>
