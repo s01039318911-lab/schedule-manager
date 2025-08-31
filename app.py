@@ -404,10 +404,11 @@ def change_username(user_id):
     
     return jsonify({'success': True, 'message': f'{old_username}의 사용자명이 {new_username}로 변경되었습니다.'})
 
+# 데이터베이스 초기화 (Gunicorn에서도 실행되도록)
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
     import os
-    with app.app_context():
-        db.create_all()
-    
     port = int(os.environ.get('PORT', 5001))
     app.run(debug=False, host='0.0.0.0', port=port)
